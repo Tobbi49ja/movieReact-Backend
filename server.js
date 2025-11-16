@@ -16,7 +16,7 @@ const io = new Server(server, {
 // ✅ CORS
 app.use(
   cors({
-    origin: "http://localhost:5173", // Frontend port
+    origin: "https://moviereact-zzye.onrender.com/", // Frontend port
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
