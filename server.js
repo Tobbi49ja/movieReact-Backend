@@ -14,9 +14,6 @@ const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
-// -----------------------------
-// CORS
-// -----------------------------
 const allowedOrigins = [
   "http://localhost:5173",
   "https://moviereact-zzye.onrender.com",
@@ -33,13 +30,11 @@ app.use(
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../client")));
 
-// -----------------------------
-// Env vars
-// -----------------------------
+
 const localMongoUri = process.env.LOCAL_URI;
 const atlasMongoUri = process.env.ATLAS_URI;
 const jwtSecret = process.env.JWT_SECRET;
-const port = process.env.PORT || 5000;
+const port = process.env.PORT;
 
 console.log("🔑 ENV CHECK:");
 console.log("LOCAL_URI:", localMongoUri ? "✅ Loaded" : "❌ Missing");
@@ -53,9 +48,6 @@ if (!atlasMongoUri || !jwtSecret) {
   process.exit(1);
 }
 
-// -----------------------------
-// MongoDB options
-// -----------------------------
 const connectionOptions = {
   maxPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
@@ -65,9 +57,7 @@ const connectionOptions = {
   retryReads: true,
 };
 
-// -----------------------------
-// Check online
-// -----------------------------
+
 async function isOnline() {
   try {
     await dns.lookup("google.com");
@@ -77,9 +67,7 @@ async function isOnline() {
   }
 }
 
-// -----------------------------
-// Connect to MongoDB
-// -----------------------------
+
 const connectToMongoDB = async () => {
   const online = await isOnline();
 
@@ -106,9 +94,7 @@ const connectToMongoDB = async () => {
   }
 };
 
-// -----------------------------
-// Logging middleware
-// -----------------------------
+-
 app.use((req, res, next) => {
   console.log(
     `[API] ${req.method} ${req.url} → DB: ${app.locals.dbEnv || "unknown"}`
