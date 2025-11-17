@@ -45,6 +45,8 @@ console.log("🔑 ENV CHECK:");
 console.log("LOCAL_URI:", localMongoUri ? "✅ Loaded" : "❌ Missing");
 console.log("ATLAS_URI:", atlasMongoUri ? "✅ Loaded" : "❌ Missing");
 console.log("JWT_SECRET:", jwtSecret ? "✅ Loaded" : "❌ Missing");
+console.log("EMAIL_USER:", process.env.EMAIL_USER ? "✅ Loaded" : "❌ Missing");
+console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "✅ Loaded" : "❌ Missing");
 
 if (!atlasMongoUri || !jwtSecret) {
   console.error("❌ Missing required environment variables");
@@ -120,13 +122,16 @@ app.use((req, res, next) => {
 const commentRoutes = require("./Routes/comments");
 app.use("/api/comments", commentRoutes); // supports both movie & TV
 
+// Contact email route
+const contactRoutes = require("./Routes/contact");
+app.use("/api/contact", contactRoutes);
+
 // -----------------------------
 // Socket.io logic
 // -----------------------------
 io.on("connection", (socket) => {
   console.log("New client connected:", socket.id);
 
-  // Join room (movie or tv)
   socket.on("join_room", ({ contentType, contentId }) => {
     const room = `${contentType}_${contentId}`;
     socket.join(room);
@@ -139,13 +144,11 @@ io.on("connection", (socket) => {
     console.log(`Socket ${socket.id} left room: ${room}`);
   });
 
-  // Broadcast new comment
   socket.on("send_comment", (comment) => {
     const room = `${comment.contentType}_${comment.contentId}`;
     socket.to(room).emit("new_comment", comment);
   });
 
-  // Broadcast likes
   socket.on("like_comment", (updatedComment) => {
     const room = `${updatedComment.contentType}_${updatedComment.contentId}`;
     socket.to(room).emit("comment_liked", updatedComment);
@@ -156,9 +159,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// -----------------------------
-// Start server
-// -----------------------------
+
 connectToMongoDB().then(() => {
   server.listen(port, () =>
     console.log(`🚀 Server running at http://localhost:${port}`)
