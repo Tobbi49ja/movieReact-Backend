@@ -106,9 +106,11 @@ app.use((req, res, next) => {
 // Routes
 // -----------------------------
 const commentRoutes = require("./Routes/comments");
-app.use("/api/comments", commentRoutes); // supports both movie & TV
+app.use("/api/comments", commentRoutes);
 
-// Contact email route
+const reactionRoutes = require("./Routes/reactions");
+app.use("/api/reactions", reactionRoutes);
+
 const contactRoutes = require("./Routes/contact");
 app.use("/api/contact", contactRoutes);
 
