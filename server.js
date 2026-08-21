@@ -3,10 +3,14 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const path = require("path");
-const dns = require("dns").promises;
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const dns = require("dns");
+
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder("ipv4first");
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -30,11 +34,10 @@ app.use(
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../client")));
 
-
 const localMongoUri = process.env.LOCAL_URI;
 const atlasMongoUri = process.env.ATLAS_URI;
 const jwtSecret = process.env.JWT_SECRET;
-const port = process.env.PORT;
+const port = process.env.PORT || 5000;
 
 console.log("🔑 ENV CHECK:");
 console.log("LOCAL_URI:", localMongoUri ? "✅ Loaded" : "❌ Missing");
@@ -42,11 +45,6 @@ console.log("ATLAS_URI:", atlasMongoUri ? "✅ Loaded" : "❌ Missing");
 console.log("JWT_SECRET:", jwtSecret ? "✅ Loaded" : "❌ Missing");
 console.log("EMAIL_USER:", process.env.EMAIL_USER ? "✅ Loaded" : "❌ Missing");
 console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "✅ Loaded" : "❌ Missing");
-
-if (!atlasMongoUri || !jwtSecret) {
-  console.error("❌ Missing required environment variables");
-  process.exit(1);
-}
 
 const connectionOptions = {
   maxPoolSize: 10,
@@ -57,44 +55,48 @@ const connectionOptions = {
   retryReads: true,
 };
 
-
-async function isOnline() {
-  try {
-    await dns.lookup("google.com");
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-
 const connectToMongoDB = async () => {
-  const online = await isOnline();
+  let connected = false;
 
-  if (process.env.RENDER || process.env.NODE_ENV === "production") {
-    console.log("🌐 Production mode → connecting only to Atlas");
-    await mongoose.connect(atlasMongoUri, connectionOptions);
-    console.log("✅ Connected to MongoDB Atlas");
-    app.locals.dbEnv = "atlas";
-  } else {
-    if (online && atlasMongoUri) {
-      console.log("🌐 Online → trying Atlas");
+  if (atlasMongoUri) {
+    try {
+      console.log("🌐 Connecting to MongoDB Atlas...");
       await mongoose.connect(atlasMongoUri, connectionOptions);
       console.log("✅ Connected to MongoDB Atlas");
       app.locals.dbEnv = "atlas";
-    } else if (localMongoUri) {
-      console.log("🖥️ Offline → using Local MongoDB");
+      connected = true;
+    } catch (err) {
+      console.warn("⚠️ Initial Atlas DNS lookup failed:", err.message);
+      try {
+        dns.setServers(["8.8.8.8", "1.1.1.1"]);
+        await mongoose.connect(atlasMongoUri, connectionOptions);
+        console.log("✅ Connected to MongoDB Atlas (via Fallback DNS)");
+        app.locals.dbEnv = "atlas";
+        connected = true;
+      } catch (retryErr) {
+        console.warn("⚠️ Fallback DNS Atlas connection failed:", retryErr.message);
+      }
+    }
+  }
+
+  if (!connected && localMongoUri) {
+    try {
+      console.log("🖥️ Trying Local MongoDB...");
       await mongoose.connect(localMongoUri, connectionOptions);
       console.log("✅ Connected to Local MongoDB");
       app.locals.dbEnv = "local";
-    } else {
-      console.error("❌ No valid MongoDB URI available");
-      process.exit(1);
+      connected = true;
+    } catch (err) {
+      console.warn("⚠️ Local MongoDB connection failed:", err.message);
     }
+  }
+
+  if (!connected) {
+    console.warn("⚠️ Server starting without active MongoDB connection (DB-independent features like Download Proxy will continue to function).");
+    app.locals.dbEnv = "disconnected";
   }
 };
 
--
 app.use((req, res, next) => {
   console.log(
     `[API] ${req.method} ${req.url} → DB: ${app.locals.dbEnv || "unknown"}`
@@ -113,6 +115,9 @@ app.use("/api/reactions", reactionRoutes);
 
 const contactRoutes = require("./Routes/contact");
 app.use("/api/contact", contactRoutes);
+
+const downloadRoutes = require("./Routes/download");
+app.use("/api/download", downloadRoutes);
 
 // -----------------------------
 // Socket.io logic
@@ -146,7 +151,6 @@ io.on("connection", (socket) => {
     console.log("Client disconnected:", socket.id);
   });
 });
-
 
 connectToMongoDB().then(() => {
   server.listen(port, () =>
