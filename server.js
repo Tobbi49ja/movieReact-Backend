@@ -150,6 +150,8 @@ app.use("/api/ratings", ratingRoutes);
 
 const adminRoutes = require("./Routes/admin");
 app.use("/api/admin", adminRoutes);
+const tmdbRoutes = require("./Routes/tmdb");
+app.use("/api/tmdb", tmdbRoutes);
 
 const nollywoodRoutes = require("./Routes/nollywood");
 app.use("/api/nollywood", nollywoodRoutes);
