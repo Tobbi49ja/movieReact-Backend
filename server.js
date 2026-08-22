@@ -119,6 +119,18 @@ app.use("/api/contact", contactRoutes);
 const downloadRoutes = require("./Routes/download");
 app.use("/api/download", downloadRoutes);
 
+const authRoutes = require("./Routes/auth");
+app.use("/api/auth", authRoutes);
+
+const watchlistRoutes = require("./Routes/watchlist");
+app.use("/api/watchlist", watchlistRoutes);
+
+const ratingRoutes = require("./Routes/ratings");
+app.use("/api/ratings", ratingRoutes);
+
+const adminRoutes = require("./Routes/admin");
+app.use("/api/admin", adminRoutes);
+
 // -----------------------------
 // Socket.io logic
 // -----------------------------
