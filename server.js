@@ -7,6 +7,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const dns = require("dns");
+const { closeBrowser } = require("./utils/streamResolver");
 
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder("ipv4first");
@@ -168,4 +169,25 @@ connectToMongoDB().then(() => {
   server.listen(port, () =>
     console.log(`🚀 Server running at http://localhost:${port}`)
   );
+});
+
+// Graceful shutdown — close the shared Playwright browser before exiting.
+process.on("SIGINT", async () => {
+  console.log("SIGINT received — closing browser...");
+  try {
+    await closeBrowser();
+  } catch (err) {
+    console.error("Browser close error during SIGINT:", err.message);
+  }
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  console.log("SIGTERM received — closing browser...");
+  try {
+    await closeBrowser();
+  } catch (err) {
+    console.error("Browser close error during SIGTERM:", err.message);
+  }
+  process.exit(0);
 });
