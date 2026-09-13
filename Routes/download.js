@@ -66,9 +66,10 @@ function sanitizeFilename(name) {
  * (UNCHANGED — kept identical to previous behavior)
  */
 router.get("/options", (req, res) => {
-  const { tmdbId, type = "movie", season = 1, episode = 1, title = "Movie" } = req.query;
+  const { tmdbId, tmdb: tmdbShort, type = "movie", season = 1, episode = 1, title = "Movie" } = req.query;
+  const tmdb = tmdbId || tmdbShort;
 
-  if (!tmdbId) {
+  if (!tmdb) {
     return res.status(400).json({ error: "Missing tmdbId parameter" });
   }
 
@@ -76,7 +77,7 @@ router.get("/options", (req, res) => {
   const cleanTitle = isTv ? `${title}_S${season}E${episode}` : title;
   const fileName = sanitizeFilename(cleanTitle);
 
-  // Pre-configured downloadable targets with fallback external mirrors
+// Pre-configured downloadable targets with fallback external mirrors
   const options = [
     {
       id: "vidsrc-vip",
@@ -86,10 +87,10 @@ router.get("/options", (req, res) => {
       badge: "1080p HD",
       type: "proxy",
       sourceKey: "vidsrc",
-      proxyUrl: `/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=vidsrc&filename=${encodeURIComponent(fileName)}`,
+      proxyUrl: `/api/download/stream?tmdb=${tmdb}&type=${type}&s=${season}&e=${episode}&source=vidsrc&filename=${encodeURIComponent(fileName)}`,
       externalUrl: isTv
-        ? `https://vidsrc.me/download/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`
-        : `https://vidsrc.me/download/movie?tmdb=${tmdbId}`,
+        ? `https://vidsrc.me/download/tv?tmdb=${tmdb}&season=${season}&episode=${episode}`
+        : `https://vidsrc.me/download/movie?tmdb=${tmdb}`,
     },
     {
       id: "autoembed",
@@ -99,10 +100,10 @@ router.get("/options", (req, res) => {
       badge: "HD",
       type: "proxy",
       sourceKey: "2embed",
-      proxyUrl: `/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=2embed&filename=${encodeURIComponent(fileName)}`,
+      proxyUrl: `/api/download/stream?tmdb=${tmdb}&type=${type}&s=${season}&e=${episode}&source=2embed&filename=${encodeURIComponent(fileName)}`,
       externalUrl: isTv
-        ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${season}&e=${episode}`
-        : `https://www.2embed.cc/embed/${tmdbId}`,
+        ? `https://www.2embed.cc/embedtv/${tmdb}&s=${season}&e=${episode}`
+        : `https://www.2embed.cc/embed/${tmdb}`,
     },
     {
       id: "multiembed",
@@ -112,10 +113,10 @@ router.get("/options", (req, res) => {
       badge: "Multi Quality",
       type: "proxy",
       sourceKey: "multiembed",
-      proxyUrl: `/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=multiembed&filename=${encodeURIComponent(fileName)}`,
+      proxyUrl: `/api/download/stream?tmdb=${tmdb}&type=${type}&s=${season}&e=${episode}&source=multiembed&filename=${encodeURIComponent(fileName)}`,
       externalUrl: isTv
-        ? `https://multiembed.mov/direct-download?tmdb=${tmdbId}&s=${season}&e=${episode}`
-        : `https://multiembed.mov/direct-download?tmdb=${tmdbId}`,
+        ? `https://multiembed.mov/direct-download?tmdb=${tmdb}&s=${season}&e=${episode}`
+        : `https://multiembed.mov/direct-download?tmdb=${tmdb}`,
     },
     {
       id: "vidsrc-pro",
@@ -125,17 +126,17 @@ router.get("/options", (req, res) => {
       badge: "Standard",
       type: "proxy",
       sourceKey: "vidsrcpro",
-      proxyUrl: `/api/download/stream?tmdb=${tmdbId}&type=${type}&s=${season}&e=${episode}&source=vidsrcpro&filename=${encodeURIComponent(fileName)}`,
+      proxyUrl: `/api/download/stream?tmdb=${tmdb}&type=${type}&s=${season}&e=${episode}&source=vidsrcpro&filename=${encodeURIComponent(fileName)}`,
       externalUrl: isTv
-        ? `https://vidsrc.pro/embed/tv/${tmdbId}?season=${season}&episode=${episode}`
-        : `https://vidsrc.pro/embed/movie/${tmdbId}`,
+        ? `https://vidsrc.pro/embed/tv/${tmdb}?season=${season}&episode=${episode}`
+        : `https://vidsrc.pro/embed/movie/${tmdb}`,
     },
   ];
 
   res.json({
     title,
     type,
-    tmdbId,
+    tmdbId: tmdb,
     season: isTv ? season : undefined,
     episode: isTv ? episode : undefined,
     options,
@@ -153,12 +154,15 @@ router.get("/options", (req, res) => {
  */
 router.get("/resolve", async (req, res) => {
   const {
-    tmdbId: tmdb,
+    tmdbId: tmdbFromId,
+    tmdb: tmdbFromShort,
     type = "movie",
     season = 1,
     episode = 1,
     source,
   } = req.query;
+
+  const tmdb = tmdbFromId || tmdbFromShort;
 
   if (!tmdb) {
     return res.status(400).json({ error: "Missing tmdbId parameter" });
@@ -238,13 +242,16 @@ router.get("/resolve", async (req, res) => {
  */
 router.get("/stream", async (req, res) => {
   const {
-    tmdbId: tmdb,
+    tmdbId: tmdbFromId,
+    tmdb: tmdbFromShort,
     type = "movie",
     season = 1,
     episode = 1,
     source,
     filename = "video.mp4",
   } = req.query;
+
+  const tmdb = tmdbFromId || tmdbFromShort;
 
   if (!tmdb) {
     return res.status(400).json({ error: "Missing tmdbId parameter" });
