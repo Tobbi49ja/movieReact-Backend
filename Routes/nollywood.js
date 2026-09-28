@@ -7,15 +7,35 @@ const https = require("https");
 const TMDB_KEY = process.env.TMDB_API_KEY;
 const TMDB_BASE = "https://api.themoviedb.org/3";
 
+if (!TMDB_KEY) {
+  console.warn("⚠️  TMDB_API_KEY is not set — Nollywood routes will fail");
+}
+
 const fetchTMDB = (url) => {
   return new Promise((resolve, reject) => {
     https
       .get(url, (res) => {
+        // TMDB returns non-200 for auth/rate-limit errors — surface them
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          let body = "";
+          res.on("data", (chunk) => (body += chunk));
+          res.on("end", () => {
+            reject(new Error(`TMDB HTTP ${res.statusCode}: ${body.slice(0, 200)}`));
+          });
+          return;
+        }
+
         let data = "";
         res.on("data", (chunk) => (data += chunk));
         res.on("end", () => {
           try {
-            resolve(JSON.parse(data));
+            const parsed = JSON.parse(data);
+            // TMDB wraps errors in { status_code, status_message }
+            if (parsed.status_code && parsed.status_message) {
+              reject(new Error(`TMDB error [${parsed.status_code}]: ${parsed.status_message}`));
+              return;
+            }
+            resolve(parsed);
           } catch (err) {
             reject(new Error("Invalid TMDB response"));
           }
@@ -61,7 +81,11 @@ router.get("/search", async (req, res) => {
   }
 
   try {
-    const url = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&region=NG&page=${page}`;
+    // NOTE: TMDB /search/movie does NOT support the `region` query parameter
+    // (it is silently ignored). We search without it and let the caller filter
+    // by origin_country if needed. Nollywood titles are present in TMDB's
+    // global index, so a plain text search will surface them.
+    const url = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&page=${page}`;
     const data = await fetchTMDB(url);
 
     res.json({
