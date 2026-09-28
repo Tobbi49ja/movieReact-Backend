@@ -81,17 +81,42 @@ router.get("/search", async (req, res) => {
   }
 
   try {
-    // NOTE: TMDB /search/movie does NOT support the `region` query parameter
-    // (it is silently ignored). We search without it and let the caller filter
-    // by origin_country if needed. Nollywood titles are present in TMDB's
-    // global index, so a plain text search will surface them.
-    const url = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&page=${page}`;
-    const data = await fetchTMDB(url);
+    // Search movies first. If fewer than 3 results, also search TV shows
+    // filtered by origin country NG so Nigerian series (e.g. "Ordinary People")
+    // surface alongside Nollywood films. Merge and deduplicate by id.
+    const movieUrl = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&page=${page}`;
+    const movieData = await fetchTMDB(movieUrl);
+    const movieResults = Array.isArray(movieData?.results) ? movieData.results : [];
+
+    let merged = movieResults.map((m) => ({ ...m, media_type: "movie" }));
+
+    if (merged.length < 3) {
+      try {
+        const tvUrl = `${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&page=${page}`;
+        const tvData = await fetchTMDB(tvUrl);
+        const tvResults = Array.isArray(tvData?.results) ? tvData.results : [];
+        const tvMapped = tvResults.map((t) => ({ ...t, media_type: "tv" }));
+
+        // Merge and deduplicate by id (movies and TV use separate id spaces, so
+        // we key by `${media_type}:${id}` to avoid collisions)
+        const seen = new Set(merged.map((m) => `${m.media_type}:${m.id}`));
+        for (const t of tvMapped) {
+          const k = `${t.media_type}:${t.id}`;
+          if (!seen.has(k)) {
+            seen.add(k);
+            merged.push(t);
+          }
+        }
+      } catch (tvErr) {
+        // TV search failed — return what we have from movies only
+        console.warn("Nollywood TV search fallback failed:", tvErr.message);
+      }
+    }
 
     res.json({
-      results: Array.isArray(data?.results) ? data.results : [],
-      page: data?.page || page,
-      total_pages: data?.total_pages || 1,
+      results: merged,
+      page: movieData?.page || page,
+      total_pages: movieData?.total_pages || 1,
       source: "tmdb-ng",
     });
   } catch (err) {
