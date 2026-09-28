@@ -8,6 +8,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const dns = require("dns");
 const { closeBrowser } = require("./utils/streamResolver");
+const { isBot, prerenderPage, closeBrowser: closePrerenderBrowser } = require("./utils/prerender");
 
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder("ipv4first");
@@ -33,6 +34,24 @@ app.use(
 );
 
 app.use(express.json());
+
+// Prerender middleware — serve pre-rendered HTML to social crawlers so
+// Open Graph / Twitter Card meta tags reach WhatsApp, Telegram, Twitter/X, etc.
+app.use(async (req, res, next) => {
+  const ua = req.headers["user-agent"] || "";
+  if (!isBot(ua)) return next();
+  // Don't prerender API routes
+  if (req.path.startsWith("/api")) return next();
+
+  const rendered = await prerenderPage(req.path);
+  if (rendered) {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=300"); // cache 5 min
+    return res.send(rendered);
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, "../client")));
 
 const localMongoUri = process.env.LOCAL_URI;
@@ -176,21 +195,31 @@ connectToMongoDB().then(() => {
 
 // Graceful shutdown — close the shared Playwright browser before exiting.
 process.on("SIGINT", async () => {
-  console.log("SIGINT received — closing browser...");
+  console.log("SIGINT received — closing browsers...");
   try {
     await closeBrowser();
   } catch (err) {
-    console.error("Browser close error during SIGINT:", err.message);
+    console.error("Stream browser close error during SIGINT:", err.message);
+  }
+  try {
+    await closePrerenderBrowser();
+  } catch (err) {
+    console.error("Prerender browser close error during SIGINT:", err.message);
   }
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
-  console.log("SIGTERM received — closing browser...");
+  console.log("SIGTERM received — closing browsers...");
   try {
     await closeBrowser();
   } catch (err) {
-    console.error("Browser close error during SIGTERM:", err.message);
+    console.error("Stream browser close error during SIGTERM:", err.message);
+  }
+  try {
+    await closePrerenderBrowser();
+  } catch (err) {
+    console.error("Prerender browser close error during SIGTERM:", err.message);
   }
   process.exit(0);
 });
