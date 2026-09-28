@@ -132,6 +132,9 @@ app.use("/api/ratings", ratingRoutes);
 const adminRoutes = require("./Routes/admin");
 app.use("/api/admin", adminRoutes);
 
+const nollywoodRoutes = require("./Routes/nollywood");
+app.use("/api/nollywood", nollywoodRoutes);
+
 // -----------------------------
 // Socket.io logic
 // -----------------------------
