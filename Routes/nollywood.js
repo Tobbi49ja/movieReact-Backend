@@ -53,7 +53,7 @@ router.get("/trending", async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
 
   try {
-    const url = `${TMDB_BASE}/discover/movie?api_key=${TMDB_KEY}&language=en-US&with_origin_country=NG&sort_by=popularity.desc&page=${page}`;
+    const url = `${TMDB_BASE}/discover/movie?api_key=${TMDB_KEY}&language=en-US&with_origin_country=NG&sort_by=primary_release_date.desc&vote_count.gte=5&include_adult=false&page=${page}`;
     const data = await fetchTMDB(url);
 
     res.json({
@@ -81,42 +81,45 @@ router.get("/search", async (req, res) => {
   }
 
   try {
-    // Search movies first. If fewer than 3 results, also search TV shows
-    // filtered by origin country NG so Nigerian series (e.g. "Ordinary People")
-    // surface alongside Nollywood films. Merge and deduplicate by id.
-    const movieUrl = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&page=${page}`;
-    const movieData = await fetchTMDB(movieUrl);
+    // Always search both movies and TV shows, then merge and deduplicate.
+    // Movies use region=NG; TV shows use with_origin_country=NG so
+    // Nigerian series surface alongside Nollywood films.
+    const movieUrl = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&region=NG&page=${page}`;
+    const tvUrl = `${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&with_origin_country=NG&page=${page}`;
+
+    const [movieData, tvData] = await Promise.all([
+      fetchTMDB(movieUrl).catch(() => ({ results: [] })),
+      fetchTMDB(tvUrl).catch(() => ({ results: [] })),
+    ]);
+
     const movieResults = Array.isArray(movieData?.results) ? movieData.results : [];
+    const tvResults = Array.isArray(tvData?.results) ? tvData.results : [];
 
-    let merged = movieResults.map((m) => ({ ...m, media_type: "movie" }));
+    const movieMapped = movieResults.map((m) => ({ ...m, media_type: "movie" }));
+    const tvMapped = tvResults.map((t) => ({ ...t, media_type: "tv" }));
 
-    if (merged.length < 3) {
-      try {
-        const tvUrl = `${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&language=en-US&query=${encodeURIComponent(q)}&page=${page}`;
-        const tvData = await fetchTMDB(tvUrl);
-        const tvResults = Array.isArray(tvData?.results) ? tvData.results : [];
-        const tvMapped = tvResults.map((t) => ({ ...t, media_type: "tv" }));
-
-        // Merge and deduplicate by id (movies and TV use separate id spaces, so
-        // we key by `${media_type}:${id}` to avoid collisions)
-        const seen = new Set(merged.map((m) => `${m.media_type}:${m.id}`));
-        for (const t of tvMapped) {
-          const k = `${t.media_type}:${t.id}`;
-          if (!seen.has(k)) {
-            seen.add(k);
-            merged.push(t);
-          }
-        }
-      } catch (tvErr) {
-        // TV search failed — return what we have from movies only
-        console.warn("Nollywood TV search fallback failed:", tvErr.message);
+    // Deduplicate by `${media_type}:${id}`
+    const seen = new Set();
+    const merged = [];
+    for (const item of [...movieMapped, ...tvMapped]) {
+      const key = `${item.media_type}:${item.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(item);
       }
     }
+
+    // Sort by release date / first air date descending (newest first)
+    merged.sort((a, b) => {
+      const dateA = new Date(a.release_date || a.first_air_date || 0).getTime();
+      const dateB = new Date(b.release_date || b.first_air_date || 0).getTime();
+      return dateB - dateA;
+    });
 
     res.json({
       results: merged,
       page: movieData?.page || page,
-      total_pages: movieData?.total_pages || 1,
+      total_pages: Math.max(movieData?.total_pages || 1, tvData?.total_pages || 1),
       source: "tmdb-ng",
     });
   } catch (err) {
