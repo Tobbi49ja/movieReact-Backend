@@ -90,7 +90,7 @@ router.get("/options", (req, res) => {
       proxyUrl: `/api/download/stream?tmdb=${tmdb}&type=${type}&s=${season}&e=${episode}&source=vidsrc&filename=${encodeURIComponent(fileName)}`,
       externalUrl: isTv
         ? `https://vidsrc.me/download/tv?tmdb=${tmdb}&season=${season}&episode=${episode}`
-        : `https://vidsrc.me/download/movie?tmdb=${tmdb}`,
+        : `https://autoembed.cc/movie/tmdb/${tmdb}`,
     },
     {
       id: "autoembed",
@@ -120,7 +120,7 @@ router.get("/options", (req, res) => {
     },
     {
       id: "vidsrc-pro",
-      name: "VidSrc Pro Server",
+      name: "EmbedSu Mirror",
       quality: "720p HD",
       speed: "Standard",
       badge: "Standard",
@@ -129,7 +129,7 @@ router.get("/options", (req, res) => {
       proxyUrl: `/api/download/stream?tmdb=${tmdb}&type=${type}&s=${season}&e=${episode}&source=vidsrcpro&filename=${encodeURIComponent(fileName)}`,
       externalUrl: isTv
         ? `https://vidsrc.pro/embed/tv/${tmdb}?season=${season}&episode=${episode}`
-        : `https://vidsrc.pro/embed/movie/${tmdb}`,
+        : `https://embed.su/embed/movie/${tmdb}`,
     },
   ];
 

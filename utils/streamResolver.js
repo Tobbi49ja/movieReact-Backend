@@ -18,9 +18,9 @@ function log(...args) {
 // Each value is a function that returns the full embed URL given the query.
 const SOURCE_URLS = {
   vidsrc: {
-    movie: (tmdbId) => `https://vidsrc.xyz/embed/movie?tmdb=${tmdbId}`,
+    movie: (tmdbId) => `https://autoembed.cc/movie/tmdb/${tmdbId}`,
     tv: (tmdbId, s, e) =>
-      `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${s}&episode=${e}`,
+      `https://autoembed.cc/tv/tmdb/${tmdbId}-${s}-${e}`,
   },
   "2embed": {
     movie: (tmdbId) => `https://www.2embed.cc/embed/${tmdbId}`,
@@ -33,9 +33,9 @@ const SOURCE_URLS = {
       `https://multiembed.mov/direct-download?tmdb=${tmdbId}&s=${s}&e=${e}`,
   },
   vidsrcpro: {
-    movie: (tmdbId) => `https://vidsrc.pro/embed/movie/${tmdbId}`,
+    movie: (tmdbId) => `https://embed.su/embed/movie/${tmdbId}`,
     tv: (tmdbId, s, e) =>
-      `https://vidsrc.pro/embed/tv/${tmdbId}?season=${s}&episode=${e}`,
+      `https://embed.su/embed/tv/${tmdbId}/${s}/${e}`,
   },
 };
 
