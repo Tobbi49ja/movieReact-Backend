@@ -156,6 +156,9 @@ app.use("/api/tmdb", tmdbRoutes);
 const nollywoodRoutes = require("./Routes/nollywood");
 app.use("/api/nollywood", nollywoodRoutes);
 
+const liveTvRoutes = require('./Routes/livetv');
+app.use('/api/livetv', liveTvRoutes);
+
 // -----------------------------
 // Socket.io logic
 // -----------------------------
