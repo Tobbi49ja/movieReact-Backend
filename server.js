@@ -37,7 +37,7 @@ const compression = require("compression");
 app.use(compression());
 
 app.use((req, res, next) => {
-  if (req.method === "GET" && (req.path.startsWith("/api/tmdb") || req.path.startsWith("/api/download"))) {
+  if (req.method === "GET" && req.path.startsWith("/api/tmdb")) {
     res.setHeader("Cache-Control", "public, max-age=300");
   }
   next();
@@ -143,9 +143,6 @@ app.use("/api/reactions", reactionRoutes);
 
 const contactRoutes = require("./Routes/contact");
 app.use("/api/contact", contactRoutes);
-
-const downloadRoutes = require("./Routes/download");
-app.use("/api/download", downloadRoutes);
 
 const authRoutes = require("./Routes/auth");
 app.use("/api/auth", authRoutes);
