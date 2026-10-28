@@ -33,7 +33,15 @@ app.use(
   })
 );
 
-app.use(express.json());
+const compression = require("compression");
+app.use(compression());
+
+app.use((req, res, next) => {
+  if (req.method === "GET" && (req.path.startsWith("/api/tmdb") || req.path.startsWith("/api/download"))) {
+    res.setHeader("Cache-Control", "public, max-age=300");
+  }
+  next();
+});
 
 // Prerender middleware — serve pre-rendered HTML to social crawlers so
 // Open Graph / Twitter Card meta tags reach WhatsApp, Telegram, Twitter/X, etc.
