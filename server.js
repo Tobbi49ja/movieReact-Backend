@@ -164,8 +164,10 @@ app.use("/api/nollywood", nollywoodRoutes);
 const liveTvRoutes = require('./Routes/livetv');
 app.use('/api/livetv', liveTvRoutes);
 
+const appConfigRoutes = require('./Routes/appConfig');
+app.use('/api/app-config', appConfigRoutes);
+
 // -----------------------------
-// Socket.io logic
 // -----------------------------
 io.on("connection", (socket) => {
   console.log("New client connected:", socket.id);
