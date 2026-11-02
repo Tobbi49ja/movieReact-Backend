@@ -36,6 +36,9 @@ app.use(
 const compression = require("compression");
 app.use(compression());
 
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+
 app.use((req, res, next) => {
   if (req.method === "GET" && req.path.startsWith("/api/tmdb")) {
     res.setHeader("Cache-Control", "public, max-age=300");
