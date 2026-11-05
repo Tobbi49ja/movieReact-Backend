@@ -1,0 +1,44 @@
+[
+  {
+    "id": "d790f1a4-1e02-4989-b88e-5f4c35b8672d",
+    "name": "Test download",
+    "m3u8Url": "https://example.com/playlist.m3u8",
+    "downloadPath": "downloads",
+    "filePath": "",
+    "status": "failed",
+    "progress": 0,
+    "size": "0 B",
+    "speed": "0 B/s",
+    "startedAt": "2026-11-05T12:37:17.028Z",
+    "completedAt": "2026-11-05T12:37:29.761Z",
+    "subtitles": [
+      "en",
+      "es"
+    ],
+    "subtitlePaths": [],
+    "lastMessage": "ERROR: [generic] playlist: Unable to download webpage: HTTP Error 404: Not Found (caused by <HTTPError 404: Not Found>)",
+    "mediaId": null,
+    "mediaType": null,
+    "quality": "720p",
+    "resolvedPath": "C:\\Users\\TOBBI\\Documents\\MyWork\\Git-Repos\\Tobbihub\\server\\downloads\\downloads"
+  },
+  {
+    "id": "8e212e32-a611-4c01-9045-e61c9f9b1e10",
+    "name": "Test download",
+    "m3u8Url": "https://example.com/playlist.m3u8",
+    "downloadPath": "downloads",
+    "filePath": "",
+    "status": "failed",
+    "progress": 0,
+    "size": "0 B",
+    "speed": "0 B/s",
+    "startedAt": "2026-11-05T12:21:43.458Z",
+    "completedAt": "2026-11-05T12:21:43.510Z",
+    "subtitles": [],
+    "subtitlePaths": [],
+    "lastMessage": "yt-dlp is not installed or not available in PATH.",
+    "mediaId": null,
+    "mediaType": null,
+    "resolvedPath": "C:\\Users\\TOBBI\\Documents\\MyWork\\Git-Repos\\Tobbihub\\server\\downloads\\downloads"
+  }
+]

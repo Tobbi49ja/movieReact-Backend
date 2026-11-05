@@ -172,6 +172,9 @@ app.use('/api/livetv', liveTvRoutes);
 const appConfigRoutes = require('./Routes/appConfig');
 app.use('/api/app-config', appConfigRoutes);
 
+const downloadRoutes = require('./Routes/downloads');
+app.use('/api/downloads', downloadRoutes);
+
 // -----------------------------
 // -----------------------------
 io.on("connection", (socket) => {
