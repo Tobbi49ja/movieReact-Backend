@@ -6,6 +6,7 @@ const crypto = require('crypto');
 
 const DOWNLOAD_ROOT = path.resolve(__dirname, '../downloads');
 const DOWNLOAD_STATE_FILE = path.resolve(__dirname, '../data/downloads.json');
+const TRUSTED_DOWNLOAD_PROVIDERS = new Set(['vidnest', 'vidsrc', 'vsembed']);
 const state = new Map();
 
 async function ensureStorage() {
@@ -43,6 +44,29 @@ async function persistState() {
   await fs.writeFile(DOWNLOAD_STATE_FILE, JSON.stringify(payload, null, 2));
 }
 
+function isDirectMediaUrl(rawUrl) {
+  if (typeof rawUrl !== 'string') {
+    return false;
+  }
+
+  const candidate = rawUrl.trim();
+  if (!candidate) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(candidate);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return false;
+    }
+
+    const lower = parsed.pathname.toLowerCase();
+    return lower.includes('.m3u8') || lower.includes('.mp4') || lower.includes('.mkv') || lower.includes('.webm') || lower.includes('.mov') || lower.includes('.avi') || lower.includes('.flv') || lower.includes('.m4v');
+  } catch {
+    return false;
+  }
+}
+
 function normalizeUrl(rawUrl) {
   const candidate = typeof rawUrl === 'string' ? rawUrl.trim() : '';
   if (!candidate) {
@@ -61,6 +85,26 @@ function normalizeUrl(rawUrl) {
   }
 
   return parsed.toString();
+}
+
+function validateDownloadRequest(payload) {
+  const rawUrl = payload?.m3u8Url || payload?.mediaUrl || payload?.url || '';
+  const provider = String(payload?.provider || payload?.source || '').trim().toLowerCase();
+  const directUrlAllowed = isDirectMediaUrl(rawUrl);
+
+  if (!provider) {
+    return;
+  }
+
+  if (TRUSTED_DOWNLOAD_PROVIDERS.has(provider)) {
+    return;
+  }
+
+  if (directUrlAllowed) {
+    return;
+  }
+
+  throw new Error('Direct app downloads are not supported for this source. Paste a direct stream URL or use a trusted provider such as Vidnest.');
 }
 
 function sanitizeTitle(rawTitle) {
@@ -309,6 +353,8 @@ async function finalizeDownloadJob(job, safeDir, safeTitle, exitCode, finalError
 }
 
 async function startDownload(payload) {
+  validateDownloadRequest(payload);
+
   const { job, safeDir, safeTitle, subtitleLanguages, qualityPreference } = await createDownloadJob(payload);
 
   const downloader = getExecutable();
