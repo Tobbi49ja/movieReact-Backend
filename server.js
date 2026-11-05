@@ -68,7 +68,9 @@ app.use(express.static(path.join(__dirname, "../client")));
 const localMongoUri = process.env.LOCAL_URI;
 const atlasMongoUri = process.env.ATLAS_URI;
 const jwtSecret = process.env.JWT_SECRET;
-const port = process.env.PORT || 5000;
+const port = Number(process.env.PORT);
+if (!port) { console.error("PORT is required (no default). Refusing to start."); process.exit(1); }
+const host = process.env.HOST || "127.0.0.1";
 
 console.log("🔑 ENV CHECK:");
 console.log("LOCAL_URI:", localMongoUri ? "✅ Loaded" : "❌ Missing");
@@ -203,8 +205,8 @@ io.on("connection", (socket) => {
 });
 
 connectToMongoDB().then(() => {
-  server.listen(port, () =>
-    console.log(`🚀 Server running at http://localhost:${port}`)
+  server.listen(port, host, () =>
+    console.log(`🚀 Server running at ${host}:${port}`)
   );
 });
 
