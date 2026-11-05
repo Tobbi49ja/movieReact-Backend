@@ -45,20 +45,19 @@ function parseM3U(text) {
   const lines = text.split("\n");
   const channels = [];
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith("#EXTINF")) {
-      const nameMatch = lines[i].match(/tvg-name="([^"]+)"/);
-      const logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
-      const groupMatch = lines[i].match(/group-title="([^"]+)"/);
-      const url = lines[i + 1]?.trim();
-      if (url && !url.startsWith("#")) {
-        channels.push({
-          name: nameMatch?.[1] || "Unknown",
-          logo: logoMatch?.[1] || "",
-          group: groupMatch?.[1] || "",
-          url,
-        });
-      }
-    }
+    const line = lines[i].trim();
+    if (!line.startsWith("#EXTINF")) continue;
+    const nameMatch = line.match(/tvg-name="([^"]+)"/);
+    const titleMatch = line.match(/",\s*(.+)$/) || line.match(/,\s*([^,]+)$/);
+    const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+    const groupMatch = line.match(/group-title="([^"]+)"/);
+    const url = lines[i + 1]?.trim();
+    if (!url || url.startsWith("#")) continue;
+    // Browsers block http streams on an https page, and hls.js cannot play .mpd
+    if (!/^https:\/\//i.test(url) || /\.mpd(\?|$)/i.test(url)) continue;
+    const name = (nameMatch?.[1] || titleMatch?.[1] || "").trim();
+    if (!name) continue;
+    channels.push({ name, logo: logoMatch?.[1] || "", group: groupMatch?.[1] || "", url });
   }
   return channels.filter((c) => c.url && c.logo);
 }
