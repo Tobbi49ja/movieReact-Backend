@@ -61,10 +61,42 @@ function isDirectMediaUrl(rawUrl) {
     }
 
     const lower = parsed.pathname.toLowerCase();
-    return lower.includes('.m3u8') || lower.includes('.mp4') || lower.includes('.mkv') || lower.includes('.webm') || lower.includes('.mov') || lower.includes('.avi') || lower.includes('.flv') || lower.includes('.m4v');
+    return lower.includes('.m3u8') || lower.includes('.mp4') || lower.includes('.mkv') || lower.includes('.webm') || lower.includes('.mov') || lower.includes('.avi') || lower.includes('.flv') || lower.includes('.m4v') || lower.includes('.mpd');
   } catch {
     return false;
   }
+}
+
+function extractMediaCandidatesFromText(text) {
+  if (typeof text !== 'string' || !text.trim()) {
+    return [];
+  }
+
+  const candidates = new Set();
+  const patterns = [
+    /https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|mkv|webm|mov|avi|flv|m4v|mpd)(?:\?[^\s"'<>]*)?/gi,
+    /(?:file|src|source|url|playbackUrl|videoUrl|streamUrl)\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi,
+    /https?:\/\/[^\s"'<>]+(?:m3u8|mp4|mkv|webm|mov|avi|flv|m4v|mpd)[^\s"'<>]*/gi,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const value = (match[1] || match[0] || '').trim().replace(/&amp;/gi, '&');
+      if (!value) continue;
+      if (value.startsWith('http://') || value.startsWith('https://')) {
+        candidates.add(value.replace(/[),.;]+$/, ''));
+      }
+    }
+  }
+
+  return Array.from(candidates).filter((url) => {
+    try {
+      const parsed = new URL(url);
+      return ['http:', 'https:'].includes(parsed.protocol);
+    } catch {
+      return false;
+    }
+  });
 }
 
 function normalizeUrl(rawUrl) {
@@ -101,6 +133,26 @@ async function resolveTrustedProviderStreamUrl(rawUrl, provider) {
 
   if (!providerName || !TRUSTED_DOWNLOAD_PROVIDERS.has(providerName)) {
     throw new Error('Direct app downloads are not supported for this source. Paste a direct stream URL or use a trusted provider such as Vidnest.');
+  }
+
+  try {
+    const response = await fetch(candidate, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      redirect: 'follow',
+    });
+
+    if (response.ok) {
+      const html = await response.text();
+      const htmlCandidates = extractMediaCandidatesFromText(html);
+      if (htmlCandidates.length) {
+        return normalizeUrl(htmlCandidates[0]);
+      }
+    }
+  } catch (error) {
+    console.warn(`Provider HTML fallback failed for ${providerName}:`, error.message);
   }
 
   const downloader = getExecutable();
