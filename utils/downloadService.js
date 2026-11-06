@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 const DOWNLOAD_ROOT = path.resolve(__dirname, '../downloads');
 const DOWNLOAD_STATE_FILE = path.resolve(__dirname, '../data/downloads.json');
-const TRUSTED_DOWNLOAD_PROVIDERS = new Set(['vidnest', 'vidsrc', 'vsembed']);
+const TRUSTED_DOWNLOAD_PROVIDERS = new Set(['vidnest', 'vidsrc', 'vsembed', 'vidsrc2', 'vidsrc3']);
 const state = new Map();
 
 async function ensureStorage() {
@@ -87,20 +87,70 @@ function normalizeUrl(rawUrl) {
   return parsed.toString();
 }
 
+async function resolveTrustedProviderStreamUrl(rawUrl, provider) {
+  const candidate = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+  const providerName = String(provider || '').trim().toLowerCase();
+
+  if (!candidate) {
+    throw new Error('A valid media URL is required.');
+  }
+
+  if (isDirectMediaUrl(candidate)) {
+    return normalizeUrl(candidate);
+  }
+
+  if (!providerName || !TRUSTED_DOWNLOAD_PROVIDERS.has(providerName)) {
+    throw new Error('Direct app downloads are not supported for this source. Paste a direct stream URL or use a trusted provider such as Vidnest.');
+  }
+
+  const downloader = getExecutable();
+  if (!downloader) {
+    throw new Error('yt-dlp is not installed or not available in PATH or Python environment.');
+  }
+
+  const resolverArgs = [
+    ...downloader.args,
+    '--no-warnings',
+    '--no-check-certificate',
+    '--geo-bypass',
+    '--flat-playlist',
+    '--print', 'url',
+    '--format', 'bestvideo+bestaudio/best',
+    candidate,
+  ];
+
+  const result = spawnSync(downloader.command, resolverArgs, {
+    encoding: 'utf8',
+    timeout: 45000,
+  });
+
+  if (result.error) {
+    throw new Error(`Unable to resolve a stream from ${providerName}: ${result.error.message}`);
+  }
+
+  const stdout = (result.stdout || '').trim();
+  const streamUrl = stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line && /^https?:\/\//i.test(line));
+
+  if (!streamUrl) {
+    throw new Error(`Unable to resolve a direct stream for ${providerName}. The provider may block extraction.`);
+  }
+
+  return normalizeUrl(streamUrl);
+}
+
 function validateDownloadRequest(payload) {
   const rawUrl = payload?.m3u8Url || payload?.mediaUrl || payload?.url || '';
   const provider = String(payload?.provider || payload?.source || '').trim().toLowerCase();
   const directUrlAllowed = isDirectMediaUrl(rawUrl);
 
-  if (!provider) {
-    return;
+  if (!provider && !directUrlAllowed) {
+    throw new Error('A valid media URL is required.');
   }
 
-  if (TRUSTED_DOWNLOAD_PROVIDERS.has(provider)) {
-    return;
-  }
-
-  if (directUrlAllowed) {
+  if (!provider || TRUSTED_DOWNLOAD_PROVIDERS.has(provider) || directUrlAllowed) {
     return;
   }
 
@@ -287,7 +337,9 @@ async function persistJob(job) {
 async function createDownloadJob(payload) {
   await ensureStorage();
 
-  const mediaUrl = normalizeUrl(payload?.m3u8Url || payload?.mediaUrl || payload?.url);
+  const provider = String(payload?.provider || payload?.source || '').trim().toLowerCase();
+  const rawUrl = payload?.m3u8Url || payload?.mediaUrl || payload?.url || '';
+  const mediaUrl = await resolveTrustedProviderStreamUrl(rawUrl, provider);
   const title = sanitizeTitle(payload?.title || payload?.name || 'download');
   const requestedDownloadPath = payload?.downloadPath || DOWNLOAD_ROOT;
   const safeDir = resolveDownloadDirectory(requestedDownloadPath);
