@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 const DOWNLOAD_ROOT = path.resolve(__dirname, '../downloads');
 const DOWNLOAD_STATE_FILE = path.resolve(__dirname, '../data/downloads.json');
-const TRUSTED_DOWNLOAD_PROVIDERS = new Set(['vidnest', 'vidsrc', 'vsembed', 'vidsrc2', 'vidsrc3']);
+const TRUSTED_DOWNLOAD_PROVIDERS = new Set(['vidnest', 'vidsrc', 'vsembed', 'vidsrc2', 'vidsrc3', 'vidrift']);
 const state = new Map();
 
 async function ensureStorage() {
@@ -75,8 +75,10 @@ function extractMediaCandidatesFromText(text) {
   const candidates = new Set();
   const patterns = [
     /https?:\/\/[^\s"'<>]+\.(?:m3u8|mp4|mkv|webm|mov|avi|flv|m4v|mpd)(?:\?[^\s"'<>]*)?/gi,
-    /(?:file|src|source|url|playbackUrl|videoUrl|streamUrl)\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi,
+    /(?:file|src|source|url|playbackUrl|videoUrl|streamUrl|playlist|manifest|hls)\s*[:=]\s*["'](https?:\/\/[^"']+)["']/gi,
+    /(?:file|src|source|url|playbackUrl|videoUrl|streamUrl|playlist|manifest|hls)\s*[:=]\s*(https?:\/\/[^,\s"'<>\]]+)/gi,
     /https?:\/\/[^\s"'<>]+(?:m3u8|mp4|mkv|webm|mov|avi|flv|m4v|mpd)[^\s"'<>]*/gi,
+    /"(https?:\/\/[^"']+(?:m3u8|mp4|mkv|webm|mov|avi|flv|m4v|mpd)[^"']*)"/gi,
   ];
 
   for (const pattern of patterns) {
@@ -97,6 +99,42 @@ function extractMediaCandidatesFromText(text) {
       return false;
     }
   });
+}
+
+function getProviderRequestHeaders(provider, url = '') {
+  const providerName = String(provider || '').trim().toLowerCase();
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    Accept: '*/*',
+  };
+
+  if (providerName === 'vidrift' || String(url || '').toLowerCase().includes('vidrift.net')) {
+    headers.Referer = 'https://embed.vidrift.net/';
+    headers.Origin = 'https://embed.vidrift.net';
+    headers.Accept = 'video/*,application/octet-stream,*/*';
+  }
+
+  return headers;
+}
+
+async function validateDirectMediaAccess(rawUrl, provider) {
+  const candidate = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+  if (!candidate || !isDirectMediaUrl(candidate)) {
+    return;
+  }
+
+  const providerName = String(provider || '').trim().toLowerCase();
+  const response = await fetch(candidate, {
+    method: 'HEAD',
+    headers: getProviderRequestHeaders(providerName, candidate),
+    redirect: 'follow',
+  });
+
+  if (response.ok || response.status === 206) {
+    return;
+  }
+
+  throw new Error(`Blocked or inaccessible direct media URL for ${providerName || 'this provider'} (HTTP ${response.status}).`);
 }
 
 function normalizeUrl(rawUrl) {
@@ -128,6 +166,7 @@ async function resolveTrustedProviderStreamUrl(rawUrl, provider) {
   }
 
   if (isDirectMediaUrl(candidate)) {
+    await validateDirectMediaAccess(candidate, providerName);
     return normalizeUrl(candidate);
   }
 
@@ -137,10 +176,7 @@ async function resolveTrustedProviderStreamUrl(rawUrl, provider) {
 
   try {
     const response = await fetch(candidate, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
+      headers: getProviderRequestHeaders(providerName, candidate),
       redirect: 'follow',
     });
 
@@ -160,16 +196,26 @@ async function resolveTrustedProviderStreamUrl(rawUrl, provider) {
     throw new Error('yt-dlp is not installed or not available in PATH or Python environment.');
   }
 
+  const providerHeaders = getProviderRequestHeaders(providerName, candidate);
   const resolverArgs = [
     ...downloader.args,
     '--no-warnings',
     '--no-check-certificate',
     '--geo-bypass',
     '--flat-playlist',
-    '--print', 'url',
-    '--format', 'bestvideo+bestaudio/best',
-    candidate,
+    '--add-header', `User-Agent:${providerHeaders['User-Agent']}`,
+    '--add-header', `Accept:${providerHeaders.Accept}`,
   ];
+
+  if (providerHeaders.Referer) {
+    resolverArgs.push('--add-header', `Referer:${providerHeaders.Referer}`);
+  }
+
+  if (providerHeaders.Origin) {
+    resolverArgs.push('--add-header', `Origin:${providerHeaders.Origin}`);
+  }
+
+  resolverArgs.push('--print', 'url', '--format', 'bestvideo+bestaudio/best', candidate);
 
   const result = spawnSync(downloader.command, resolverArgs, {
     encoding: 'utf8',
@@ -475,6 +521,7 @@ async function startDownload(payload) {
     ? `bestvideo[height<=${qualityPreference.maxHeight}]+bestaudio/best[height<=${qualityPreference.maxHeight}]/best`
     : 'bestvideo+bestaudio/best';
 
+  const providerHeaders = getProviderRequestHeaders(payload?.provider || payload?.source || '', job.m3u8Url);
   const args = [
     '--no-warnings',
     '--newline',
@@ -483,7 +530,17 @@ async function startDownload(payload) {
     '--output', outputTemplate,
     '--format', formatExpression,
     '--merge-output-format', 'mp4',
+    '--add-header', `User-Agent:${providerHeaders['User-Agent']}`,
+    '--add-header', `Accept:${providerHeaders.Accept}`,
   ];
+
+  if (providerHeaders.Referer) {
+    args.push('--add-header', `Referer:${providerHeaders.Referer}`);
+  }
+
+  if (providerHeaders.Origin) {
+    args.push('--add-header', `Origin:${providerHeaders.Origin}`);
+  }
 
   if (subtitleLanguages.length) {
     args.push('--write-subs', '--sub-langs', subtitleLanguages.join(','), '--convert-subs', 'vtt');

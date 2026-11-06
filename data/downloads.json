@@ -1,5 +1,49 @@
 [
   {
+    "id": "ffed639b-5247-489e-bccd-a192704c90f4",
+    "name": "download-test",
+    "m3u8Url": "https://mb.vidrift.net/api/orion/63108e145aa628cb9d9151adbe554d23/video.mp4",
+    "downloadPath": "downloads",
+    "filePath": "",
+    "status": "downloading",
+    "progress": 11,
+    "size": "558.35 MiB",
+    "speed": "517.45 KiB/s",
+    "startedAt": "2026-11-06T07:10:48.530Z",
+    "completedAt": null,
+    "subtitles": [
+      "en"
+    ],
+    "subtitlePaths": [],
+    "lastMessage": "[download]  11.2% of  558.35MiB at  517.45KiB/s ETA 16:21",
+    "mediaId": null,
+    "mediaType": "movie",
+    "quality": "best",
+    "resolvedPath": "C:\\Users\\TOBBI\\Documents\\MyWork\\Git-Repos\\Tobbihub\\server\\downloads"
+  },
+  {
+    "id": "96bc440d-792b-4596-9038-3e7de83e5596",
+    "name": "download-test",
+    "m3u8Url": "https://mb.vidrift.net/api/orion/63108e145aa628cb9d9151adbe554d23/video.mp4",
+    "downloadPath": "downloads",
+    "filePath": "",
+    "status": "failed",
+    "progress": 0,
+    "size": "0 B",
+    "speed": "0 B/s",
+    "startedAt": "2026-11-06T07:04:41.383Z",
+    "completedAt": "2026-11-06T07:05:01.649Z",
+    "subtitles": [
+      "en"
+    ],
+    "subtitlePaths": [],
+    "lastMessage": "ERROR: [generic] video: Unable to download webpage: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>)",
+    "mediaId": null,
+    "mediaType": "movie",
+    "quality": "best",
+    "resolvedPath": "C:\\Users\\TOBBI\\Documents\\MyWork\\Git-Repos\\Tobbihub\\server\\downloads"
+  },
+  {
     "id": "d790f1a4-1e02-4989-b88e-5f4c35b8672d",
     "name": "Test download",
     "m3u8Url": "https://example.com/playlist.m3u8",
