@@ -126,17 +126,20 @@ router.use(rateLimit);
 // -----------------------------
 router.get("/search", async (req, res) => {
   const tmdbId = String(req.query.tmdbId ?? "").trim();
-  const lang = String(req.query.lang ?? "").trim().toLowerCase();
+  let lang = String(req.query.lang ?? "").trim().toLowerCase();
   const seasonValue = req.query.season;
   const episodeValue = req.query.episode;
 
   if (!/^\d{1,10}$/.test(tmdbId) || Number(tmdbId) <= 0) {
-    return res
-      .status(400)
-      .json({ error: "tmdbId must be a positive numeric id" });
+    return res.status(400).json({ error: "Invalid tmdbId" });
   }
-  if (!/^[a-z]{2,5}$/.test(lang)) {
-    return res.status(400).json({ error: "lang must be 2-5 letters" });
+  if (
+    !lang ||
+    lang === "off" ||
+    lang === "none" ||
+    !/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/.test(lang)
+  ) {
+    lang = "en";
   }
 
   const hasSeason =
@@ -233,8 +236,10 @@ router.get("/search", async (req, res) => {
     if (!item) continue;
     const parsed = parseWyzieUrl(item.url);
     if (!parsed) continue;
+    const id = item.id != null ? String(item.id) : "";
+    if (id.startsWith("ai-")) continue;
     results.push({
-      id: item.id != null ? String(item.id) : "",
+      id,
       lang: item.language || lang,
       label: item.display || item.language || lang,
       format: item.format || "",
