@@ -175,6 +175,9 @@ app.use('/api/app-config', appConfigRoutes);
 const downloadRoutes = require('./Routes/downloads');
 app.use('/api/downloads', downloadRoutes);
 
+const subtitleRoutes = require('./Routes/subtitles');
+app.use('/api/subtitles', subtitleRoutes);
+
 // -----------------------------
 // -----------------------------
 io.on("connection", (socket) => {
