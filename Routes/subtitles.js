@@ -238,11 +238,13 @@ router.get("/search", async (req, res) => {
     if (!parsed) continue;
     const id = item.id != null ? String(item.id) : "";
     if (id.startsWith("ai-")) continue;
+    const format = String(item.format ?? "").trim().toLowerCase();
+    if (format !== "srt" && format !== "vtt") continue;
     results.push({
       id,
       lang: item.language || lang,
-      label: item.display || item.language || lang,
-      format: item.format || "",
+      label: `${item.display || item.language || lang} [${format}]`,
+      format,
       url: parsed.toString(),
     });
     if (results.length >= MAX_RESULTS) break;
