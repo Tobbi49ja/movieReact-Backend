@@ -329,6 +329,14 @@ router.get("/file", async (req, res) => {
     return res.status(502).json({ error: "Failed to decode subtitle file" });
   }
 
+  text = text
+    .split(/\r?\n\s*\r?\n/)
+    .filter((block) => {
+      const lower = block.toLowerCase();
+      return !lower.includes("sub.wyzie.io") && !lower.includes("free plan");
+    })
+    .join("\n\n");
+
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.send(text);
 });
